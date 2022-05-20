@@ -19,7 +19,7 @@ begin
 	using LinearAlgebra
 	using Plots
 	using PlutoUI
-	plotly()
+	plotly();
 end
 
 # ╔═╡ 6219c534-5fa2-4b60-8474-ab673ffc979f
@@ -29,18 +29,35 @@ md"""
 Solving the linear Advection equation using a particle method
 """
 
+# ╔═╡ 1ec38266-ed9b-4006-8f59-15f265bcd350
+
+	n = @bind n Slider(2:1:10, default=4)
+
+
+# ╔═╡ fc6a0fd0-1e57-4e07-b0ec-79a17653b4b9
+h = 2 / (n -1)  # TODO why 2 ? -> domain 2 long
+
+# ╔═╡ e3005aef-fc23-4c90-b274-3f5e1385ed28
+t = @bind t Slider(0:0.01:2)
+
+# ╔═╡ c935b7a2-d2ff-463c-b1a7-a9409dc0e429
+σ = @bind σ Slider(0:0.01:4/(n-1), default=2/(n-1))
+
+# ╔═╡ 1a420f5b-9f39-41fa-8c63-22859cbcca5c
+show_blobs = @bind show_blobs CheckBox(default=true)
+
 # ╔═╡ f9091ba8-8ce0-4503-8f22-2a6a24fc6833
 # Parameter
 begin
-	n = 4
+	# n = 10
 	x_domain = [-1. 1.;
 			    -1. 1.]
 	
-	h = 2 / (n -1)  # TODO why 2 ? -> domain 2 long
+	# h = 2 / (n -1)  # TODO why 2 ? -> domain 2 long
 
 	a(x) = [-x[2],x[1]]
 	u_0(x) =  norm(x,2) < 1 ? exp(-1/(1 - norm(x,2)^2)) : 0
-	# u_0(x1_, x2_) =  sqrt(x1_^2 + x2_^2)^2 < 1 ? exp(-1/(1-sqrt(x1_^2 + x2_^2)^2)) : 0
+	u_0(x1_, x2_) =  sqrt(x1_^2 + x2_^2)^2 < 1 ? exp(-1/(1-sqrt(x1_^2 + x2_^2)^2)) : 0
 	Δt = 0.01
 
 	
@@ -48,21 +65,14 @@ begin
 	x2 = LinRange(x_domain[2,1], x_domain[2,2],n)
 end
 
-# ╔═╡ e3005aef-fc23-4c90-b274-3f5e1385ed28
-t = @bind t Slider(0:0.01:1)
-
-# ╔═╡ c935b7a2-d2ff-463c-b1a7-a9409dc0e429
-σ = @bind σ Slider(0:0.01:2/(n-1), default=1/(n-1))
-
 # ╔═╡ b3db05de-af30-4aa8-97eb-4be35f27fc90
 # begin
-# 	f(x,y) = x*y-x-y+1
 # 	plot(x1,x2, u_0,st=:surface,camera=(-30,30))
 # end
 
 # ╔═╡ c30dc353-a98d-4e42-af5c-a84d6667ede2
 begin
-	x = LinRange(-1,1,1000)
+	x = LinRange(-2,2,1000)
 	ζ(x) = 1/(2π) *	(6 - 6*norm(x,2)^2 + norm(x,2)^4) * exp(-norm(x,2)^2)
 	σζ(x) = σ^-2 * ζ(x./σ)
 	plot(x,σζ)
@@ -119,13 +129,15 @@ begin
 		σζ(x) = σ^-2 * ζ(x./σ)
 	
 		plot_ = contourf(x1,x2,reconstruct_gird_values(blobs))
-	
-		for i in 1:size(blobs)[1]
-				# scatter!(plot_, (blobs[i].x[1], blobs[i].x[2]), label="",marker_z=blobs[i].m)
-				scatter!(plot_, (blobs[i].x[1], blobs[i].x[2]), label="",color="red")
-				plot!(circleShape(blobs[i].x[1], blobs[i].x[2],σ), seriestype =[:shape,], lw=0.5, label="",fillalpha=0.1, color="red")
+
+		if show_blobs
+			for i in 1:size(blobs)[1]
+					# scatter!(plot_, (blobs[i].x[1], blobs[i].x[2]), label="",marker_z=blobs[i].m)
+					scatter!(plot_, (blobs[i].x[1], blobs[i].x[2]), label="",color="red")
+					plot!(circleShape(blobs[i].x[1], blobs[i].x[2],σ), seriestype =[:shape,], lw=0.5, label="",fillalpha=0.1, color="red")
+			end
 		end
-	
+		
 		return plot_
 	end
 
@@ -156,17 +168,6 @@ end
 plot(plot_blobs(t), plot_analytical(t), layoput=(:,1), size=(700,350))
 # add ylim find max value by integrating
 # why negative starting values?
-
-# ╔═╡ 1291fc2d-a25c-42c3-b5ca-e50087f274fa
-begin
-	tmp = 0
-		for i in x
-			tmp += σζ(i)*(x[2]-x[1])
-		end
-end
-
-# ╔═╡ 11d7db9e-d029-4f44-82a3-33febf8ee685
-tmp
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
@@ -1122,15 +1123,16 @@ version = "0.9.1+5"
 
 # ╔═╡ Cell order:
 # ╟─6219c534-5fa2-4b60-8474-ab673ffc979f
-# ╠═18778270-d6db-11ec-3c7c-1131d16b133c
-# ╠═f9091ba8-8ce0-4503-8f22-2a6a24fc6833
-# ╠═e3005aef-fc23-4c90-b274-3f5e1385ed28
-# ╠═c935b7a2-d2ff-463c-b1a7-a9409dc0e429
+# ╟─18778270-d6db-11ec-3c7c-1131d16b133c
+# ╟─1ec38266-ed9b-4006-8f59-15f265bcd350
+# ╟─fc6a0fd0-1e57-4e07-b0ec-79a17653b4b9
+# ╟─e3005aef-fc23-4c90-b274-3f5e1385ed28
+# ╟─c935b7a2-d2ff-463c-b1a7-a9409dc0e429
+# ╟─1a420f5b-9f39-41fa-8c63-22859cbcca5c
+# ╟─f9091ba8-8ce0-4503-8f22-2a6a24fc6833
 # ╟─daa144cb-1cf8-47ba-b3a5-381983c5300f
-# ╠═f45ff749-166b-4b45-aab9-83e06395bac4
+# ╟─f45ff749-166b-4b45-aab9-83e06395bac4
 # ╠═b3db05de-af30-4aa8-97eb-4be35f27fc90
-# ╠═c30dc353-a98d-4e42-af5c-a84d6667ede2
-# ╠═1291fc2d-a25c-42c3-b5ca-e50087f274fa
-# ╠═11d7db9e-d029-4f44-82a3-33febf8ee685
+# ╟─c30dc353-a98d-4e42-af5c-a84d6667ede2
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002

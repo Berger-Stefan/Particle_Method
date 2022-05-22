@@ -1,5 +1,5 @@
 ### A Pluto.jl notebook ###
-# v0.19.4
+# v0.19.5
 
 using Markdown
 using InteractiveUtils
@@ -27,11 +27,16 @@ md"""
 # Particle- Blob Method
 
 Solving the linear Advection equation using a particle method
+
+$\frac{\partial u}{\partial t} + (\vec{a} \cdot \nabla) \; u = 0$
+
+Core Idea is to descretize the domain, create blobs and evolve those blobs. Then you can reconstruct the values on the domain by using the "blob" function.
+
 """
 
 # ╔═╡ 1ec38266-ed9b-4006-8f59-15f265bcd350
 
-	n = @bind n Slider(2:1:10, default=4)
+	n = @bind n Slider(2:1:30, default=4)
 
 
 # ╔═╡ fc6a0fd0-1e57-4e07-b0ec-79a17653b4b9
@@ -56,14 +61,16 @@ begin
 	# h = 2 / (n -1)  # TODO why 2 ? -> domain 2 long
 
 	a(x) = [-x[2],x[1]]
-	u_0(x) =  norm(x,2) < 1 ? exp(-1/(1 - norm(x,2)^2)) : 0
+	# origin = [0.25,0.25]
+	origin = [0,0]
+	u_0(x) =  norm(x + origin,2) < 1 ? exp(-1/(1 - norm(x + origin,2)^2)) : 0
 	u_0(x1_, x2_) =  sqrt(x1_^2 + x2_^2)^2 < 1 ? exp(-1/(1-sqrt(x1_^2 + x2_^2)^2)) : 0
 	Δt = 0.01
 
 	
-	x1 = LinRange(x_domain[1,1],x_domain[1,2],n)
-	x2 = LinRange(x_domain[2,1], x_domain[2,2],n)
-end
+	x1 = LinRange(x_domain[1,1],x_domain[1,2],n);
+	x2 = LinRange(x_domain[2,1], x_domain[2,2],n);
+end;
 
 # ╔═╡ b3db05de-af30-4aa8-97eb-4be35f27fc90
 # begin
@@ -87,7 +94,7 @@ begin
 	
 	function evolve_blobs(t, blobs::Vector{Blob})
 		for i in 1:size(blobs)[1]
-				blobs[i].x = blobs[i].x + t * a(blobs[i].x)	#TODO Runge Kutta
+				blobs[i].x = blobs[i].x + t/2 *( a(blobs[i].x) + a(blobs[i].x + Δt*a(blobs[i].x)))	#TODO Runge Kutta
 		end
 	end
 	
@@ -161,11 +168,11 @@ begin
 		plot_ = contourf(x1,x2,helper)
 		return plot_
 	end
-end
+		end;
 
 # ╔═╡ f45ff749-166b-4b45-aab9-83e06395bac4
 # ╠═╡ show_logs = false
-plot(plot_blobs(t), plot_analytical(t), layoput=(:,1), size=(700,350))
+plot(plot_blobs(t), plot_analytical(t), layoput=(:,1), size=(650,300), dpi =400)
 # add ylim find max value by integrating
 # why negative starting values?
 
@@ -185,7 +192,7 @@ PlutoUI = "~0.7.38"
 PLUTO_MANIFEST_TOML_CONTENTS = """
 # This file is machine-generated - editing it directly is not advised
 
-julia_version = "1.7.2"
+julia_version = "1.7.1"
 manifest_format = "2.0"
 
 [[deps.AbstractPlutoDingetjes]]
@@ -1131,8 +1138,8 @@ version = "0.9.1+5"
 # ╟─1a420f5b-9f39-41fa-8c63-22859cbcca5c
 # ╟─f9091ba8-8ce0-4503-8f22-2a6a24fc6833
 # ╟─daa144cb-1cf8-47ba-b3a5-381983c5300f
-# ╟─f45ff749-166b-4b45-aab9-83e06395bac4
-# ╠═b3db05de-af30-4aa8-97eb-4be35f27fc90
+# ╠═f45ff749-166b-4b45-aab9-83e06395bac4
+# ╟─b3db05de-af30-4aa8-97eb-4be35f27fc90
 # ╟─c30dc353-a98d-4e42-af5c-a84d6667ede2
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002

@@ -1,5 +1,5 @@
 ### A Pluto.jl notebook ###
-# v0.19.5
+# v0.19.4
 
 using Markdown
 using InteractiveUtils
@@ -16,11 +16,11 @@ end
 
 # ╔═╡ 18778270-d6db-11ec-3c7c-1131d16b133c
 begin
-	using LinearAlgebra
-	using Plots
-	using PlutoUI
-	plotly();
-end
+	using LinearAlgebra;
+	using Plots;
+	using PlutoUI;
+	# plotly();
+end;
 
 # ╔═╡ 6219c534-5fa2-4b60-8474-ab673ffc979f
 md"""
@@ -34,75 +34,115 @@ Core Idea is to descretize the domain, create blobs and evolve those blobs. Then
 
 """
 
-# ╔═╡ 1ec38266-ed9b-4006-8f59-15f265bcd350
+# ╔═╡ 65056e6d-0768-4e78-ac15-04ae0425d5af
+md"""
+###### how to choose σ?
+Idealy you would choose σ = h, but this only works in the first few timesteps:
 
-	n = @bind n Slider(2:1:30, default=4)
+$$\| u - u_h\|_{L^p(Ω)} = C\cdot e^{t(n+m)}\cdot(σ^n+(\frac{h}{σ})^m))$$
 
+where $m$ is the order of the "blob" function and $m$ is the order of the quadrature. For the first timestep the order of the quadrature order is infinite, but after a while the time constant explodes and leads to poor results.
 
-# ╔═╡ fc6a0fd0-1e57-4e07-b0ec-79a17653b4b9
-h = 2 / (n -1)  # TODO why 2 ? -> domain 2 long
+Therefore σ should be choosen like:
 
-# ╔═╡ e3005aef-fc23-4c90-b274-3f5e1385ed28
-t = @bind t Slider(0:0.01:1)
+$$h\sim σ^{1+\frac{n}{m}}$$
+
+For a quadrature with order $m=2$ and blob functions order $m=6$:
+
+$$h \sim σ^{1/4}$$
+
+"""
+
+# ╔═╡ ff45c043-9b19-4366-833a-27d0770af4c3
+md"""
+Grid spacing, n =      $(@bind n Slider(3:1:51, default=11, show_value=true))
+"""
+
+# ╔═╡ b24814be-d571-4611-8632-6b0f0b2b0853
+begin
+	# Parameter	
+		x_domain = [-1. 1.;
+				    -1. 1.]
+	
+		a(x) = [-x[2],x[1]]
+		# origin = [0.25,0.25]
+		origin = [0,0]
+		u_0(x) =  norm(x + origin,2) < 1 ? exp(-1/(1 - norm(x + origin,2)^2)) : 0
+		u_0(x1_, x2_) =  sqrt(x1_^2 + x2_^2)^2 < 1 ? exp(-1/(1-sqrt(x1_^2 + x2_^2)^2)) : 0
+	
+		
+		x1 = LinRange(x_domain[1,1],x_domain[1,2],n);
+		x2 = LinRange(x_domain[2,1], x_domain[2,2],n);
+	end;
+
+# ╔═╡ 24b5d199-68da-4ff1-8ad5-e430907012fa
+h = 2/(n -1)
+
+# ╔═╡ d6b5f985-c674-489d-95ce-57b27b76c03b
+σ_opt = h^(1/4)
 
 # ╔═╡ c935b7a2-d2ff-463c-b1a7-a9409dc0e429
-σ = @bind σ Slider(0:0.001:2*h, default=h)
-# σ = h^(1/4)
+σ = @bind σ NumberField(h^2:0.001:h^(1/8), default=h^(1/4) )
+
+# ╔═╡ fdeb5a7d-ed23-4a65-ba6c-a98f843d7e78
+md"""
+To avoid the big σ, it is possible to remesh the blobs every few timesteps:
+
+remeshing = $(@bind remeshing CheckBox(default=false))
+
+remeshing frequency = $(@bind interval NumberField(1:100, default=5)) (per  n timesteps)
+
+"""
+
+# ╔═╡ e3005aef-fc23-4c90-b274-3f5e1385ed28
+t = @bind t Slider(0:0.01:2, show_value=true)
 
 # ╔═╡ 1a420f5b-9f39-41fa-8c63-22859cbcca5c
-show_blobs = @bind show_blobs CheckBox(default=true)
+show_blobs = @bind show_blobs CheckBox(default=false)
 
-# ╔═╡ f9091ba8-8ce0-4503-8f22-2a6a24fc6833
-# Parameter
-begin
-	# n = 10
-	x_domain = [-1. 1.;
-			    -1. 1.]
-	
-	# h = 2 / (n -1)  # TODO why 2 ? -> domain 2 long
+# ╔═╡ 060cea16-339a-4c7a-b1cb-405c7d2ead5e
+md"""
+In case the plotting takes too long, you can decrease the stepsize for the ODE integration \
+Δt = $(@bind Δt Slider(0.001:0.001:0.4, default=0.1,show_value=true))
 
-	a(x) = [-x[2],x[1]]
-	# origin = [0.25,0.25]
-	origin = [0,0]
-	u_0(x) =  norm(x + origin,2) < 1 ? exp(-1/(1 - norm(x + origin,2)^2)) : 0
-	u_0(x1_, x2_) =  sqrt(x1_^2 + x2_^2)^2 < 1 ? exp(-1/(1-sqrt(x1_^2 + x2_^2)^2)) : 0
-	Δt = 0.01
-
-	
-	x1 = LinRange(x_domain[1,1],x_domain[1,2],n);
-	x2 = LinRange(x_domain[2,1], x_domain[2,2],n);
-end;
-
-# ╔═╡ b3db05de-af30-4aa8-97eb-4be35f27fc90
-# begin
-# 	plot(x1,x2, u_0,st=:surface,camera=(-30,30))
-# end
-
-# ╔═╡ c30dc353-a98d-4e42-af5c-a84d6667ede2
-begin
-	x = LinRange(-2,2,1000)
-	ζ(x) = 1/(2π) *	(6 - 6*norm(x,2)^2 + norm(x,2)^4) * exp(-norm(x,2)^2)
-	σζ(x) = σ^-2 * ζ(x./σ)
-	plot(x,σζ)
-end
+"""
 
 # ╔═╡ daa144cb-1cf8-47ba-b3a5-381983c5300f
 begin
 	mutable struct Blob
-		x::Vector{Number}
-		m::Number
+		x::Vector{Number} # location
+		m::Number # mass
 	end
+
+	# blob function and scaled blob function
+	ζ(x) = 1/(2π) *	(6 - 6*norm(x,2)^2 + norm(x,2)^4) * exp(-norm(x,2)^2)
+	σζ(x) = σ^-2 * ζ(x./σ)
 	
+	# remeshing kernel
+	w(x) = begin
+			if norm(x,2) > 2
+				return 0
+			elseif norm(x,2) > 1
+				return 0.5*(2 - norm(x,2))^2 * (1-norm(x,2))
+			else
+				return 1 - 5/2 * norm(x,2)^2 + 3/2 * norm(x,2)^3
+			end
+	end
+		
 	function evolve_blobs(t, blobs::Vector{Blob})
-		for i in 1:size(blobs)[1]
-				blobs[i].x = blobs[i].x + t/2 *( a(blobs[i].x) + a(blobs[i].x + Δt*a(blobs[i].x)))	#TODO Runge Kutta
+		new_blobs = blobs
+		
+	 	Threads.@threads for i in 1:size(blobs)[1]
+				new_blobs[i].x = blobs[i].x + t/2 *( a(blobs[i].x) + a(blobs[i].x + Δt*a(blobs[i].x)))	
 		end
+
+		return new_blobs
 	end
 	
 	function reconstruct_gird_values(blobs::Vector{Blob})
 		u = zeros(n,n)
 		
-		for i in 1:n
+		Threads.@threads for i in 1:n
 			for j in 1:n
 				for k in 1:size(blobs)[1]
 					u[i,j] += blobs[k].m * σζ([x1[i],x2[j]] .- blobs[k].x)
@@ -113,55 +153,53 @@ begin
 		return u
 	end
 
+	function remesh(blobs::Array{Blob})
+		# init new blobs with mass = 0
+		new_blobs = [Blob([i,j] + h/2 .*[1,1], 0) for i in x1[1:end-1] for j in x2[1:end-1]]
 
-	# remeshing kernel
-	w(x) = begin
-		if norm(x,2) > 2
-			return 0
-		elseif norm(x,2) y >1
-			return 0.5*(2 -norm(x,2))^2*(1-norm(x,2))
-		else
-			return 1- 5/2x^2 + 3/2 * abs(x)^3
+		Threads.@threads for blob_new in new_blobs
+			blob_new.m = sum([blob_old.m * w((blob_new.x - blob_old.x)/h) for blob_old in blobs])
 		end
-			
-	end
-	
-	function remeshing(blobs::Vector{Blob})
-		# u = zeros(n,n)
-		
-		# for i in 1:n
-		# 	for j in 1:n
-		# 		for k in 1:size(blobs)[1]
-		# 			u[i,j] += blobs[k].m * σζ([x1[i],x2[j]] .- blobs[k].x)
-		# 		end
-		# 	end
-		# end
-		
-		# return u
+		return new_blobs
 	end
 
 	function circleShape(h, k, r)
 		θ = LinRange(0, 2π, 100)
 		return h .+ r*sin.(θ), k .+ r*cos.(θ)
 	end
-	
-	function plot_blobs(t_end)
-	
-		blobs = [Blob([i,j] + h/2 .*[1,1],(u_0([i,j])+u_0([i,j+h])+u_0([i+h,j])+u_0([i+h,j+h]))/4 * h^2) for i in x1[1:end-1] for j in x2[1:end-1]]
 
+	function plot_blobs(t_end)
+		global blobs = [Blob([i,j] + h/2 .*[1,1],(u_0([i,j])+u_0([i,j+h])+u_0([i+h,j])+u_0([i+h,j+h]))/4 * h^2) for i in x1[1:end-1] for j in x2[1:end-1]]
+		
 		t = 0
-		while t < t_end
-			if (t_end - t) >= Δt
-				evolve_blobs(Δt, blobs)
-				t = t + Δt
-			else
-				evolve_blobs(t, blobs)
-				break
+		if !remeshing  ## no remeshing
+			while t < t_end
+				if (t_end - t) >= Δt
+					blobs = evolve_blobs(Δt, blobs)
+					t = t + Δt
+				else
+					blobs = evolve_blobs(t, blobs)
+					break
+				end
+			end
+		else      ## remeshing
+			global counter = 0 # start counter
+			while t < t_end
+				if (t_end - t) >= Δt
+					blobs = evolve_blobs(Δt, blobs)
+					t = t + Δt
+					counter += 1
+					if counter == interval #remesh step
+						blobs = remesh(blobs)
+						counter = 0 # reset counter
+					end
+				else
+					break
+					blobs = evolve_blobs(t, blobs)
+				end
 			end
 		end
 	
-		ζ(x) = 1/(2π) *	(6 - 6*norm(x,2)^2 + norm(x,2)^4) * exp(-norm(x,2)^2)
-		σζ(x) = σ^-2 * ζ(x./σ)
 	
 		plot_ = contourf(x1,x2,reconstruct_gird_values(blobs))
 
@@ -171,6 +209,7 @@ begin
 					plot!(circleShape(blobs[i].x[1], blobs[i].x[2],σ), seriestype =[:shape,], lw=0.5, label="",fillalpha=0.1, color="red")
 			end
 		end
+		title!("Numerical Result")
 		
 		return plot_
 	end
@@ -188,20 +227,19 @@ begin
 
 
 	function plot_analytical(t)
-		x1 = LinRange(-1,1,n*10)
-		x2 = LinRange(-1,1,n*10)
+		x1 = LinRange(-1,1,100)
+		x2 = LinRange(-1,1,100)
 
 		helper(x1,x2) = analytical_solution(t,[x1,x2])
 		plot_ = contourf(x1,x2,helper)
+		title!("Analytical Solution")
 		return plot_
 	end
-		end;
+end;
 
 # ╔═╡ f45ff749-166b-4b45-aab9-83e06395bac4
 # ╠═╡ show_logs = false
-plot(plot_blobs(t), plot_analytical(t), layoput=(:,1), size=(650,300), dpi =400)
-# add ylim find max value by integrating
-# why negative starting values?
+plot(plot_blobs(t), plot_analytical(0), layoput=(:,1), size=(650,300),dpi =600, margin=2Plots.mm)
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
@@ -219,7 +257,7 @@ PlutoUI = "~0.7.38"
 PLUTO_MANIFEST_TOML_CONTENTS = """
 # This file is machine-generated - editing it directly is not advised
 
-julia_version = "1.7.1"
+julia_version = "1.7.2"
 manifest_format = "2.0"
 
 [[deps.AbstractPlutoDingetjes]]
@@ -1158,15 +1196,17 @@ version = "0.9.1+5"
 # ╔═╡ Cell order:
 # ╟─6219c534-5fa2-4b60-8474-ab673ffc979f
 # ╟─18778270-d6db-11ec-3c7c-1131d16b133c
-# ╟─1ec38266-ed9b-4006-8f59-15f265bcd350
-# ╟─fc6a0fd0-1e57-4e07-b0ec-79a17653b4b9
-# ╟─e3005aef-fc23-4c90-b274-3f5e1385ed28
+# ╟─b24814be-d571-4611-8632-6b0f0b2b0853
+# ╟─65056e6d-0768-4e78-ac15-04ae0425d5af
+# ╟─ff45c043-9b19-4366-833a-27d0770af4c3
+# ╟─24b5d199-68da-4ff1-8ad5-e430907012fa
+# ╟─d6b5f985-c674-489d-95ce-57b27b76c03b
 # ╟─c935b7a2-d2ff-463c-b1a7-a9409dc0e429
+# ╟─fdeb5a7d-ed23-4a65-ba6c-a98f843d7e78
+# ╟─daa144cb-1cf8-47ba-b3a5-381983c5300f
+# ╟─f45ff749-166b-4b45-aab9-83e06395bac4
+# ╟─e3005aef-fc23-4c90-b274-3f5e1385ed28
 # ╟─1a420f5b-9f39-41fa-8c63-22859cbcca5c
-# ╟─f9091ba8-8ce0-4503-8f22-2a6a24fc6833
-# ╠═daa144cb-1cf8-47ba-b3a5-381983c5300f
-# ╠═f45ff749-166b-4b45-aab9-83e06395bac4
-# ╟─b3db05de-af30-4aa8-97eb-4be35f27fc90
-# ╟─c30dc353-a98d-4e42-af5c-a84d6667ede2
+# ╟─060cea16-339a-4c7a-b1cb-405c7d2ead5e
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002

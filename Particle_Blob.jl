@@ -43,10 +43,11 @@ Core Idea is to descretize the domain, create blobs and evolve those blobs. Then
 h = 2 / (n -1)  # TODO why 2 ? -> domain 2 long
 
 # ╔═╡ e3005aef-fc23-4c90-b274-3f5e1385ed28
-t = @bind t Slider(0:0.01:2)
+t = @bind t Slider(0:0.01:1)
 
 # ╔═╡ c935b7a2-d2ff-463c-b1a7-a9409dc0e429
-σ = @bind σ Slider(0:0.01:4/(n-1), default=2/(n-1))
+σ = @bind σ Slider(0:0.001:2*h, default=h)
+# σ = h^(1/4)
 
 # ╔═╡ 1a420f5b-9f39-41fa-8c63-22859cbcca5c
 show_blobs = @bind show_blobs CheckBox(default=true)
@@ -112,6 +113,33 @@ begin
 		return u
 	end
 
+
+	# remeshing kernel
+	w(x) = begin
+		if norm(x,2) > 2
+			return 0
+		elseif norm(x,2) y >1
+			return 0.5*(2 -norm(x,2))^2*(1-norm(x,2))
+		else
+			return 1- 5/2x^2 + 3/2 * abs(x)^3
+		end
+			
+	end
+	
+	function remeshing(blobs::Vector{Blob})
+		# u = zeros(n,n)
+		
+		# for i in 1:n
+		# 	for j in 1:n
+		# 		for k in 1:size(blobs)[1]
+		# 			u[i,j] += blobs[k].m * σζ([x1[i],x2[j]] .- blobs[k].x)
+		# 		end
+		# 	end
+		# end
+		
+		# return u
+	end
+
 	function circleShape(h, k, r)
 		θ = LinRange(0, 2π, 100)
 		return h .+ r*sin.(θ), k .+ r*cos.(θ)
@@ -139,7 +167,6 @@ begin
 
 		if show_blobs
 			for i in 1:size(blobs)[1]
-					# scatter!(plot_, (blobs[i].x[1], blobs[i].x[2]), label="",marker_z=blobs[i].m)
 					scatter!(plot_, (blobs[i].x[1], blobs[i].x[2]), label="",color="red")
 					plot!(circleShape(blobs[i].x[1], blobs[i].x[2],σ), seriestype =[:shape,], lw=0.5, label="",fillalpha=0.1, color="red")
 			end
@@ -1137,7 +1164,7 @@ version = "0.9.1+5"
 # ╟─c935b7a2-d2ff-463c-b1a7-a9409dc0e429
 # ╟─1a420f5b-9f39-41fa-8c63-22859cbcca5c
 # ╟─f9091ba8-8ce0-4503-8f22-2a6a24fc6833
-# ╟─daa144cb-1cf8-47ba-b3a5-381983c5300f
+# ╠═daa144cb-1cf8-47ba-b3a5-381983c5300f
 # ╠═f45ff749-166b-4b45-aab9-83e06395bac4
 # ╟─b3db05de-af30-4aa8-97eb-4be35f27fc90
 # ╟─c30dc353-a98d-4e42-af5c-a84d6667ede2
